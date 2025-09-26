@@ -2064,5 +2064,6 @@
     "playerMergeVersion": "old",
     "playerMergeTime": 30,
     "playerMergeTimeIncrease": 0.02,
-    "playerDecayMult": 0.001
+    "playerDecayMult": 0.001,
+    "webConsolePort": 3002
 }
