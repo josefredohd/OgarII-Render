@@ -1,10 +1,11 @@
 const fs = require("fs");
 const path = require("path");
-const http = require("http"); 
+const http = require("http");
 const DefaultSettings = require("../src/Settings");
 const ServerHandle = require("../src/ServerHandle");
 const { genCommand } = require("../src/commands/CommandList");
 const WebConsole = require("./web-console");
+const crypto = require("crypto"); 
 
 /** @returns {DefaultSettings} */
 function readSettings() {
@@ -23,6 +24,40 @@ function overwriteSettings(settings) {
     fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 4), "utf-8");
 }
 
+function readOrCreateConsoleCredentials() {
+    const credentialsPath = path.join(__dirname, "console-credentials.json");
+
+    try {
+        if (fs.existsSync(credentialsPath)) {
+            return JSON.parse(fs.readFileSync(credentialsPath, "utf-8"));
+        } else {
+
+            const username = crypto.randomBytes(8).toString('hex');
+            const password = crypto.randomBytes(16).toString('hex');
+
+            const credentials = {
+                username: username,
+                password: password,
+                created: new Date().toISOString()
+            };
+
+            fs.writeFileSync(credentialsPath, JSON.stringify(credentials, null, 4), "utf-8");
+
+            console.log("================================================");
+            console.log("CONSOLE CREDENTIALS GENERATED:");
+            console.log("Username: " + username);
+            console.log("Password: " + password);
+            console.log("Save these credentials for future access!");
+            console.log("================================================");
+
+            return credentials;
+        }
+    } catch (e) {
+        console.log("Error handling console credentials:", e.stack);
+        process.exit(1);
+    }
+}
+
 const settingsPath = path.join(__dirname, "settings.json");
 if (!fs.existsSync(settingsPath)) {
     console.log("Creating default settings.json...");
@@ -31,12 +66,14 @@ if (!fs.existsSync(settingsPath)) {
 
 let settings = readSettings();
 
+const consoleCredentials = readOrCreateConsoleCredentials();
+
 const currentHandle = new ServerHandle(settings);
 overwriteSettings(currentHandle.settings);
 require("./log-handler")(currentHandle);
 const logger = currentHandle.logger;
 
-const webConsole = new WebConsole(currentHandle);
+const webConsole = new WebConsole(currentHandle, consoleCredentials);
 
 const DefaultCommands = require("../src/commands/DefaultCommands");
 const DefaultProtocols = [
@@ -136,7 +173,7 @@ async function startServer() {
         httpServer.listen(settings.serverPort || 3001, () => {
             logger.print("=== OgarII Server Started ===");
             logger.print("Game Server + Web Console running on port " + (settings.serverPort || 3001));
-            logger.print("Access console at: http://localhost:" + (settings.serverPort || 3001) + "/console");
+            logger.print("Console credentials saved in console-credentials.json");
         });
 
     } catch (error) {
