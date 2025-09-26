@@ -27,15 +27,16 @@ class Listener {
     get logger() { return this.handle.logger; }
 
     open() {
-        if (this.listenerSocket !== null) return false;
-        this.logger.debug(`listener opening at ${this.settings.listeningPort}`);
-        this.listenerSocket = new WebSocketServer({
-            port: this.settings.listeningPort,
-            verifyClient: this.verifyClient.bind(this)
-        }, this.onOpen.bind(this));
-        this.listenerSocket.on("connection", this.onConnection.bind(this));
-        return true;
-    }
+    if (this.listenerSocket !== null) return false;
+    this.logger.debug(`listener opening on shared HTTP server`);
+    this.listenerSocket = new WebSocketServer({
+        server: this.handle.httpServer,
+        verifyClient: this.verifyClient.bind(this)
+    }, this.onOpen.bind(this));
+    this.listenerSocket.on("connection", this.onConnection.bind(this));
+    return true;
+}
+
     close() {
         if (this.listenerSocket === null) return false;
         this.logger.debug("listener closing");
@@ -136,4 +137,5 @@ class Listener {
 module.exports = Listener;
 
 const Router = require("./Router");
+
 const ServerHandle = require("../ServerHandle");
