@@ -383,17 +383,16 @@ class WebConsole {
         }
     }
 
-    start() {
+    start(httpServer) {
         return new Promise((resolve, reject) => {
-            this.server = this.app.listen(this.port, (err) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    this.handle.logger.print('Web console started on port ' + this.port);
-                    this.handle.logger.print('Access at: http://localhost:' + this.port + '/console');
-                    resolve();
-                }
-            });
+            try {
+                this.server = httpServer;
+                this.server.on('request', this.app); 
+                this.handle.logger.print('Web console mounted at /console on same port');
+                resolve();
+            } catch (err) {
+                reject(err);
+            }
         });
     }
 
