@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const http = require("http"); 
 const DefaultSettings = require("../src/Settings");
 const ServerHandle = require("../src/ServerHandle");
 const { genCommand } = require("../src/commands/CommandList");
@@ -22,7 +23,6 @@ function overwriteSettings(settings) {
     fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 4), "utf-8");
 }
 
-// Verificar si settings.json existe, sino crearlo
 const settingsPath = path.join(__dirname, "settings.json");
 if (!fs.existsSync(settingsPath)) {
     console.log("Creating default settings.json...");
@@ -36,10 +36,8 @@ overwriteSettings(currentHandle.settings);
 require("./log-handler")(currentHandle);
 const logger = currentHandle.logger;
 
-// Inicializar consola web
-const webConsole = new WebConsole(currentHandle, settings.webConsolePort || 3002);
+const webConsole = new WebConsole(currentHandle);
 
-// Configurar comandos y modos
 const DefaultCommands = require("../src/commands/DefaultCommands");
 const DefaultProtocols = [
     require("../src/protocols/LegacyProtocol"),
@@ -55,7 +53,6 @@ DefaultCommands(currentHandle.commands, currentHandle.chatCommands);
 currentHandle.protocols.register(...DefaultProtocols);
 currentHandle.gamemodes.register(...DefaultGamemodes);
 
-// Registrar comandos de consola
 currentHandle.commands.register(
     genCommand({
         name: "start",
@@ -124,27 +121,30 @@ currentHandle.commands.register(
     })
 );
 
-// Función para iniciar todo
 async function startServer() {
     try {
-        // Iniciar consola web primero
-        await webConsole.start();
-        
-        // Iniciar servidor de juego
+
+        const httpServer = http.createServer();
+
+        await webConsole.start(httpServer);
+
+        currentHandle.httpServer = httpServer;
+
         currentHandle.start();
-        
-        logger.print("=== OgarII Server Started ===");
-        logger.print("Game Server: port " + currentHandle.settings.serverPort);
-        logger.print("Web Console: port " + webConsole.port);
-        logger.print("Access console at: http://localhost:" + webConsole.port + "/console");
-        
+
+        const port = currentHandle.settings.serverPort || 3001;
+        httpServer.listen(settings.serverPort || 3001, () => {
+            logger.print("=== OgarII Server Started ===");
+            logger.print("Game Server + Web Console running on port " + (settings.serverPort || 3001));
+            logger.print("Access console at: http://localhost:" + (settings.serverPort || 3001) + "/console");
+        });
+
     } catch (error) {
         logger.print("Failed to start server: " + error.message);
         process.exit(1);
     }
 }
 
-// Manejar cierre graceful
 function shutdown() {
     logger.print("Shutting down server...");
     webConsole.stop();
@@ -157,5 +157,4 @@ function shutdown() {
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
 
-// Iniciar servidor
 startServer();
